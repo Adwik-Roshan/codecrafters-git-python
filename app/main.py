@@ -15,15 +15,16 @@ def main():
         with open(".git/HEAD", "w") as f:
             f.write("ref: refs/heads/main\n")
         print("Initialized git directory")
+    
     elif command == "cat-file":
         file=sys.argv[3] # file name
-        filename=f".git/objects.{file[0:2]}/{file[2:]}"
-        with open(filename,"r") as contentfile:
+        filename=f".git/objects/{file[0:2]}/{file[2:]}" # based on the task info
+        with open(filename,"rb") as contentfile:
             data=contentfile.read()
-            data_decompressed= zlib.decompress(data)
-            object_storage_nullbyte=data_decompressed.find("\0")
-            content= data_decompressed[object_storage_nullbyte+1 : ]
-            sys.stdout.write(content)
+            data_decompressed= zlib.decompress(data).decode("utf-8")
+            obj_storage_nullbyte=data_decompressed.find("\x00")
+            content= data_decompressed[obj_storage_nullbyte+1 : ].strip()
+            print(content, end= "")
     else:
         raise RuntimeError(f"Unknown command #{command}")
 
