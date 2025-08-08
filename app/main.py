@@ -13,6 +13,19 @@ def cat_file_blob(fname):
         print(content, end="")
 
 
+def hash_object_blob(filedata):
+    header = f"blob {len(filedata)}\x00".encode("utf-8")
+    file = header + filedata
+    hashed_file = hashlib.sha1(file).hexdigest()
+    print(hashed_file)
+    hash_dir = os.path.join(".git/objects", hashed_file[0:2])
+    os.mkdir(hash_dir)
+    # If we also need to write
+    if sys.argv[2] == '-w':
+        with open(os.path.join(hash_dir, hashed_file[2:]), "wb") as fp:
+            fp.write(zlib.compress(file))
+
+
 def main():
     # You can use print statements as follows for debugging, they'll be visible when running tests.
     print("Logs from your program will appear here!", file=sys.stderr)
@@ -31,7 +44,7 @@ def main():
         # based on the task info
         filename = f".git/objects/{file[0:2]}/{file[2:]}"
         cat_file_blob(filename)
-        
+
         # with open(filename, "rb") as contentfile:
         #     data = contentfile.read()
         #     data_decompressed = zlib.decompress(data).decode("utf-8")
@@ -41,19 +54,18 @@ def main():
 
     elif command == "hash-object":
         with open(sys.argv[3], "rb") as f:
-            filedata = f.read()
-        # filepath = f".git/objects/{filedata[0:2]}/{filedata[2:]}"
-        header= f"blob {len(filedata)}\x00".encode("utf-8")
-        # file = 'blob' + b' ' + str(len(filedata)).encode() + b'\x00' + filedata
-        file = header + filedata
-        hashed_file=hashlib.sha1(file).hexdigest()
-        print(hashed_file)
-        hash_dir=os.path.join(".git/objects",hashed_file[0:2])
-        os.mkdir(hash_dir)
-        # If we also need to write
-        if sys.argv[2]=='-w':
-            with open(os.path.join(hash_dir,hashed_file[2:]), "wb") as fp:
-                    fp.write(zlib.compress(file))
+            fdata = f.read()
+        hash_object_blob(fdata)
+        # header = f"blob {len(filedata)}\x00".encode("utf-8")
+        # file = header + filedata
+        # hashed_file = hashlib.sha1(file).hexdigest()
+        # print(hashed_file)
+        # hash_dir = os.path.join(".git/objects", hashed_file[0:2])
+        # os.mkdir(hash_dir)
+        # # If we also need to write
+        # if sys.argv[2] == '-w':
+        #     with open(os.path.join(hash_dir, hashed_file[2:]), "wb") as fp:
+        #         fp.write(zlib.compress(file))
             # hash=hashlib.sha1(res).hexdigest()
             # print(hash)
 
