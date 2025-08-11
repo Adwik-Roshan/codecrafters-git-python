@@ -53,6 +53,7 @@ def main():
         #     print(content, end="")
 
     elif command == "hash-object":
+
         with open(sys.argv[3], "rb") as f:
             fdata = f.read()
         hash_object_blob(fdata)
@@ -66,8 +67,40 @@ def main():
         # if sys.argv[2] == '-w':
         #     with open(os.path.join(hash_dir, hashed_file[2:]), "wb") as fp:
         #         fp.write(zlib.compress(file))
-            # hash=hashlib.sha1(res).hexdigest()
-            # print(hash)
+        # hash=hashlib.sha1(res).hexdigest()
+        # print(hash)
+
+    elif command == "ls-tree":
+        tree_sha = sys.argv[3]
+        fname = f".git/objects/{tree_sha[0:2]}/{tree_sha[2:]}"
+        with open(fname, "rb") as contentfile:
+            #tree <size>\0
+            #<mode> <name>\0<20_byte_sha>
+            #<mode> <name>\0<20_byte_sha>
+            try:
+                data = contentfile.read()
+                data_decompressed = zlib.decompress(data)
+                tree_header,tree_data= data_decompressed.split(b"\x00",maxsplit=1)
+            except FileNotFoundError:
+                print("fatal: object not found", file=sys.stderr)
+                sys.exit(1)
+            
+            while tree_data:
+                mode_name,tree_data=tree_data.split(b"\x00",maxsplit=1)
+                mode,name=mode_name.split()
+
+                #For w/o --nameonly
+                # name_decoded=name.decode("utf-8")
+                # mode_decoded=mode.decode("utf-8")
+                # if mode_decoded.startswith("4"):
+                #     obj_type = "tree"
+                # else:
+                #     obj_type = "blob"
+
+                # print(mode_decoded,' ',obj_type,' ',tree_data[:20],name_decoded,end="\n")
+
+                print(name.decode("utf-8"))
+                tree_data=tree_data[20:]
 
     else:
         raise RuntimeError(f"Unknown command #{command}")
