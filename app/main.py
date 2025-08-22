@@ -12,7 +12,6 @@ def cat_file_blob(fname):
         content = data_decompressed[obj_storage_nullbyte+1:].strip()
         print(content, end="")
 
-
 def hash_object_blob(filedata):
     header = f"blob {len(filedata)}\x00".encode("utf-8")
     file = header + filedata
@@ -25,7 +24,59 @@ def hash_object_blob(filedata):
         with open(os.path.join(hash_dir, hashed_file[2:]), "wb") as fp:
             fp.write(zlib.compress(file))
 
+def write_tree(root_dir: str):
+    
+    def hash_object(filename: str, write_object: bool = False) -> str:
+        with open(filename, "rb") as f:
+            contents = f.read()
+        length = len(contents)
+        contents = b"blob " + str(length).encode() + b"\0" + contents
+        sha1_hash = hashlib.sha1(contents).hexdigest()
 
+        if write_object:
+            dirpath = os.path.join(".git/objects", sha1_hash[:2])
+            os.makedirs(dirpath, exist_ok=True)
+            filepath = os.path.join(dirpath, sha1_hash[2:])
+
+            with open(filepath, "wb") as f:
+                f.write(zlib.compress(contents))
+
+        return sha1_hash
+
+    dir_mode = b"40000"
+    file_mode = b"100644"
+
+    contents = b""
+    for path in sorted(os.listdir(root_dir)):
+        if path == ".git":
+            continue
+        full_path = os.path.join(root_dir, path)
+        if os.path.isdir(full_path):
+            treehash = write_tree(full_path)
+            contents += (
+                dir_mode + b" " + path.encode("utf-8") + b"\0" + bytes.fromhex(treehash)
+            )
+        else:
+            filehash = hash_object(full_path, write_object=True)
+            contents += (
+                file_mode
+                + b" "
+                + path.encode("utf-8")
+                + b"\0"
+                + bytes.fromhex(filehash)
+            )
+
+    length = len(contents)
+    contents = b"tree " + str(length).encode("utf-8") + b"\0" + contents
+    sha1_hash = hashlib.sha1(contents).hexdigest()
+
+    dirpath = os.path.join(".git/objects", sha1_hash[:2])
+    os.makedirs(dirpath, exist_ok=True)
+    filepath = os.path.join(dirpath, sha1_hash[2:])
+    with open(filepath, "wb") as f:
+        f.write(zlib.compress(contents))
+
+    return sha1_hash
 def main():
     # You can use print statements as follows for debugging, they'll be visible when running tests.
     print("Logs from your program will appear here!", file=sys.stderr)
@@ -101,6 +152,10 @@ def main():
 
                 print(name.decode("utf-8"))
                 tree_data=tree_data[20:]
+
+    elif command == "write-tree":
+        write_obj = write_tree(".")
+        print(write_obj)
 
     else:
         raise RuntimeError(f"Unknown command #{command}")
