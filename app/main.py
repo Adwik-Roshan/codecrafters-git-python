@@ -77,6 +77,20 @@ def write_tree(root_dir: str):
         f.write(zlib.compress(contents))
 
     return sha1_hash
+
+def commit_tree(tree_sha,commit_sha,message):
+    content = f"tree {tree_sha}\n parent {commit_sha}\nauthor Adwik <adwik@gmail.com>\ncommiter renegade <renegade@gmail.com>\n\n{message}\n".encode()
+    
+    header = f"commit {len(content)}\0".encode()
+    content = header + content
+
+    commit_hash = hashlib.sha1(content).hexdigest()
+    os.makedirs(f".git/objects/{commit_hash[:2]}", exist_ok=True)
+
+    with open(f".git/objects/{commit_hash[:2]}/{commit_hash[2:]}", "wb") as ct:
+        ct.write(zlib.compress(content))
+    return commit_hash
+
 def main():
     # You can use print statements as follows for debugging, they'll be visible when running tests.
     print("Logs from your program will appear here!", file=sys.stderr)
@@ -157,6 +171,14 @@ def main():
         write_obj = write_tree(".")
         print(write_obj)
 
+    elif command== "commit-tree":
+        tree_sha = sys.argv[2]
+        commit_sha = sys.argv[4]
+        m = sys.argv[6]
+
+        ct= commit_tree(tree_sha,commit_sha,m)
+        print(ct)
+        
     else:
         raise RuntimeError(f"Unknown command #{command}")
 
