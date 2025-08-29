@@ -2,6 +2,7 @@ import sys
 import os
 import zlib
 import hashlib
+from app import repo
 
 
 def cat_file_blob(fname):
@@ -11,6 +12,7 @@ def cat_file_blob(fname):
         obj_storage_nullbyte = data_decompressed.find("\x00")
         content = data_decompressed[obj_storage_nullbyte+1:].strip()
         print(content, end="")
+
 
 def hash_object_blob(filedata):
     header = f"blob {len(filedata)}\x00".encode("utf-8")
@@ -24,8 +26,9 @@ def hash_object_blob(filedata):
         with open(os.path.join(hash_dir, hashed_file[2:]), "wb") as fp:
             fp.write(zlib.compress(file))
 
+
 def write_tree(root_dir: str):
-    
+
     def hash_object(filename: str, write_object: bool = False) -> str:
         with open(filename, "rb") as f:
             contents = f.read()
@@ -54,7 +57,8 @@ def write_tree(root_dir: str):
         if os.path.isdir(full_path):
             treehash = write_tree(full_path)
             contents += (
-                dir_mode + b" " + path.encode("utf-8") + b"\0" + bytes.fromhex(treehash)
+                dir_mode + b" " +
+                path.encode("utf-8") + b"\0" + bytes.fromhex(treehash)
             )
         else:
             filehash = hash_object(full_path, write_object=True)
@@ -78,9 +82,10 @@ def write_tree(root_dir: str):
 
     return sha1_hash
 
-def commit_tree(tree_sha,commit_sha,message):
+
+def commit_tree(tree_sha, commit_sha, message):
     content = f"tree {tree_sha}\n parent {commit_sha}\nauthor Adwik <adwik@gmail.com>\ncommiter renegade <renegade@gmail.com>\n\n{message}\n".encode()
-    
+
     header = f"commit {len(content)}\0".encode()
     content = header + content
 
@@ -90,6 +95,13 @@ def commit_tree(tree_sha,commit_sha,message):
     with open(f".git/objects/{commit_hash[:2]}/{commit_hash[2:]}", "wb") as ct:
         ct.write(zlib.compress(content))
     return commit_hash
+
+
+def clone(url, directory):
+    if not os.path.exists(directory):
+        os.mkdir(directory)
+    repo.clone(url, directory)
+
 
 def main():
     # You can use print statements as follows for debugging, they'll be visible when running tests.
@@ -110,12 +122,6 @@ def main():
         filename = f".git/objects/{file[0:2]}/{file[2:]}"
         cat_file_blob(filename)
 
-        # with open(filename, "rb") as contentfile:
-        #     data = contentfile.read()
-        #     data_decompressed = zlib.decompress(data).decode("utf-8")
-        #     obj_storage_nullbyte = data_decompressed.find("\x00")
-        #     content = data_decompressed[obj_storage_nullbyte+1:].strip()
-        #     print(content, end="")
 
     elif command == "hash-object":
 
@@ -139,22 +145,23 @@ def main():
         tree_sha = sys.argv[3]
         fname = f".git/objects/{tree_sha[0:2]}/{tree_sha[2:]}"
         with open(fname, "rb") as contentfile:
-            #tree <size>\0
-            #<mode> <name>\0<20_byte_sha>
-            #<mode> <name>\0<20_byte_sha>
+            # tree <size>\0
+            # <mode> <name>\0<20_byte_sha>
+            # <mode> <name>\0<20_byte_sha>
             try:
                 data = contentfile.read()
                 data_decompressed = zlib.decompress(data)
-                tree_header,tree_data= data_decompressed.split(b"\x00",maxsplit=1)
+                tree_header, tree_data = data_decompressed.split(
+                    b"\x00", maxsplit=1)
             except FileNotFoundError:
                 print("fatal: object not found", file=sys.stderr)
                 sys.exit(1)
-            
-            while tree_data:
-                mode_name,tree_data=tree_data.split(b"\x00",maxsplit=1)
-                mode,name=mode_name.split()
 
-                #For w/o --nameonly
+            while tree_data:
+                mode_name, tree_data = tree_data.split(b"\x00", maxsplit=1)
+                mode, name = mode_name.split()
+
+                # For w/o --nameonly
                 # name_decoded=name.decode("utf-8")
                 # mode_decoded=mode.decode("utf-8")
                 # if mode_decoded.startswith("4"):
@@ -165,20 +172,24 @@ def main():
                 # print(mode_decoded,' ',obj_type,' ',tree_data[:20],name_decoded,end="\n")
 
                 print(name.decode("utf-8"))
-                tree_data=tree_data[20:]
+                tree_data = tree_data[20:]
 
     elif command == "write-tree":
         write_obj = write_tree(".")
         print(write_obj)
 
-    elif command== "commit-tree":
+    elif command == "commit-tree":
         tree_sha = sys.argv[2]
         commit_sha = sys.argv[4]
         m = sys.argv[6]
 
-        ct= commit_tree(tree_sha,commit_sha,m)
+        ct = commit_tree(tree_sha, commit_sha, m)
         print(ct)
-        
+
+    elif command == "clone":
+        url = sys.argv[2]
+        dir = sys.argv[3]
+        clone(url, dir)
     else:
         raise RuntimeError(f"Unknown command #{command}")
 
